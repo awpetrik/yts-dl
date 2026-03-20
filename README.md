@@ -103,6 +103,21 @@ Show current configuration:
 yts-dl config show
 ```
 
+Remote example (qBittorrent-nox):
+
+If you run qBittorrent in headless mode (`qbittorrent-nox`), Web UI usually listens on port `8080`.
+
+- Example host: `http://192.168.1.20:8080`
+- Login endpoint used by this app: `/api/v2/auth/login`
+- Add torrent endpoint used by this app: `/api/v2/torrents/add`
+
+Typical setup flow:
+
+1. Install and run `qbittorrent-nox` on your server.
+2. Enable Web UI and set username/password.
+3. Make sure port `8080` is reachable from your machine.
+4. Set `host`, `username`, `password`, and `save_path` in `config.toml` (or use `yts-dl config setup`).
+
 ### Usage
 
 Main interactive menu:
@@ -262,6 +277,21 @@ Tampilkan konfigurasi aktif:
 ```bash
 yts-dl config show
 ```
+
+Contoh remote (qBittorrent-nox):
+
+Jika Anda menjalankan qBittorrent mode headless (`qbittorrent-nox`), biasanya Web UI aktif di port `8080`.
+
+- Contoh host: `http://192.168.1.20:8080`
+- Endpoint login yang dipakai aplikasi ini: `/api/v2/auth/login`
+- Endpoint tambah torrent yang dipakai aplikasi ini: `/api/v2/torrents/add`
+
+Alur setup yang umum:
+
+1. Install dan jalankan `qbittorrent-nox` di server.
+2. Aktifkan Web UI lalu atur username/password.
+3. Pastikan port `8080` bisa diakses dari mesin Anda.
+4. Isi `host`, `username`, `password`, dan `save_path` di `config.toml` (atau pakai `yts-dl config setup`).
 
 ### Penggunaan
 
