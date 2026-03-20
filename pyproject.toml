@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "yts-dl"
+version = "0.1.0"
+description = "Interactive terminal movie downloader using YTS API"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "click>=8.1.0",
+  "rich>=13.0.0",
+  "requests>=2.31.0",
+  "tomli>=2.0.1; python_version < '3.11'",
+]
+
+[project.scripts]
+yts-dl = "main:cli"
+
+[tool.setuptools]
+py-modules = ["main", "api", "qbit", "config", "ui", "utils"]
