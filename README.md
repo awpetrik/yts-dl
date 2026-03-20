@@ -139,9 +139,10 @@ yts-dl config show
 Global flags:
 
 ```bash
---remote    # force remote qBittorrent destination
---local     # force local torrent client destination
---quality   # 720p | 1080p | 1080p.x265 | 2160p | 3D
+--remote              # force remote qBittorrent destination
+--local               # force local torrent client destination
+--quality             # 720p | 1080p | 1080p.x265 | 2160p | 3D
+--save-path PATH      # override save directory on remote server
 ```
 
 Examples:
@@ -314,9 +315,10 @@ yts-dl config show
 Flag global:
 
 ```bash
---remote    # paksa tujuan remote qBittorrent
---local     # paksa tujuan torrent client lokal
---quality   # 720p | 1080p | 1080p.x265 | 2160p | 3D
+--remote              # paksa tujuan remote qBittorrent
+--local               # paksa tujuan torrent client lokal
+--quality             # 720p | 1080p | 1080p.x265 | 2160p | 3D
+--save-path PATH      # override direktori simpan di server remote
 ```
 
 Contoh:

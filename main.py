@@ -96,7 +96,12 @@ def pick_destination(config: dict, force_local: bool, force_remote: bool) -> str
     return mapping[selected]
 
 
-def do_action(destination: str, magnet_url: str, config: dict) -> bool:
+def do_action(
+    destination: str,
+    magnet_url: str,
+    config: dict,
+    save_path_override: str | None = None,
+) -> bool:
     if destination == "local":
         return open_magnet(magnet_url)
 
@@ -108,7 +113,7 @@ def do_action(destination: str, magnet_url: str, config: dict) -> bool:
         host=remote.get("host", ""),
         username=remote.get("username", ""),
         password=remote.get("password", ""),
-        save_path=remote.get("save_path", ""),
+        save_path=save_path_override or remote.get("save_path", ""),
     )
     return client.add_torrent(magnet_url)
 
@@ -134,6 +139,7 @@ def movie_flow(
     force_local: bool,
     force_remote: bool,
     quality: str | None,
+    save_path: str | None = None,
 ) -> bool:
     while True:
         movie = pick_movie(movies)
@@ -160,17 +166,25 @@ def movie_flow(
 
                 if destination == "remote":
                     config = ensure_remote_config(config)
+                    default_save = save_path or config.get("remote", {}).get("save_path", "")
+                    chosen_save_path = Prompt.ask(
+                        "Direktori simpan di server", default=default_save
+                    )
+                else:
+                    chosen_save_path = None
 
                 console.print(
                     f"\n[green]✔[/green] {movie.get('title')} ({movie.get('year')}) - {torrent.get('quality')} - {torrent.get('size')}"
                 )
                 console.print(f"Seeds: {torrent.get('seeds', 0)} | Peers: {torrent.get('peers', 0)}")
+                if chosen_save_path:
+                    console.print(f"Simpan ke: [cyan]{chosen_save_path}[/cyan]")
 
                 if not Confirm.ask("Lanjut?", default=True):
                     break
 
                 magnet = build_magnet(torrent.get("hash", ""), f"{movie.get('title')} ({movie.get('year')})")
-                ok = do_action(destination, magnet, config)
+                ok = do_action(destination, magnet, config, save_path_override=chosen_save_path)
 
                 if not ok:
                     if destination == "remote":
@@ -198,7 +212,12 @@ def movie_flow(
             break
 
 
-def run_main_menu(force_local: bool, force_remote: bool, quality: str | None) -> None:
+def run_main_menu(
+    force_local: bool,
+    force_remote: bool,
+    quality: str | None,
+    save_path: str | None = None,
+) -> None:
     config = prepare_config(force_remote)
 
     while True:
@@ -225,7 +244,7 @@ def run_main_menu(force_local: bool, force_remote: bool, quality: str | None) ->
                 show_error(f"Tidak ada hasil untuk '{query}'")
                 continue
 
-            if not movie_flow(movies, config, force_local, force_remote, quality):
+            if not movie_flow(movies, config, force_local, force_remote, quality, save_path):
                 break
 
         if choice == "2":
@@ -233,7 +252,7 @@ def run_main_menu(force_local: bool, force_remote: bool, quality: str | None) ->
             if not movies:
                 show_error("Tidak ada data top movies.")
                 continue
-            if not movie_flow(movies, config, force_local, force_remote, quality):
+            if not movie_flow(movies, config, force_local, force_remote, quality, save_path):
                 break
 
         if choice == "3":
@@ -241,7 +260,7 @@ def run_main_menu(force_local: bool, force_remote: bool, quality: str | None) ->
             if not movies:
                 show_error("Tidak ada data trending.")
                 continue
-            if not movie_flow(movies, config, force_local, force_remote, quality):
+            if not movie_flow(movies, config, force_local, force_remote, quality, save_path):
                 break
 
 
@@ -249,8 +268,15 @@ def run_main_menu(force_local: bool, force_remote: bool, quality: str | None) ->
 @click.option("--remote", "force_remote", is_flag=True, help="Kirim ke qBittorrent remote")
 @click.option("--local", "force_local", is_flag=True, help="Buka di torrent client local")
 @click.option("--quality", "global_quality", type=click.Choice(QUALITY_CHOICES), help="Pilih kualitas default")
+@click.option("--save-path", "global_save_path", default=None, help="Override direktori simpan di server remote")
 @click.pass_context
-def cli(ctx: click.Context, force_remote: bool, force_local: bool, global_quality: str | None) -> None:
+def cli(
+    ctx: click.Context,
+    force_remote: bool,
+    force_local: bool,
+    global_quality: str | None,
+    global_save_path: str | None,
+) -> None:
     if force_local and force_remote:
         raise click.ClickException("Tidak bisa memakai --local dan --remote bersamaan.")
 
@@ -258,10 +284,16 @@ def cli(ctx: click.Context, force_remote: bool, force_local: bool, global_qualit
     ctx.obj["force_remote"] = force_remote
     ctx.obj["force_local"] = force_local
     ctx.obj["quality"] = global_quality
+    ctx.obj["save_path"] = global_save_path
 
     try:
         if ctx.invoked_subcommand is None:
-            run_main_menu(force_local=force_local, force_remote=force_remote, quality=global_quality)
+            run_main_menu(
+                force_local=force_local,
+                force_remote=force_remote,
+                quality=global_quality,
+                save_path=global_save_path,
+            )
     except KeyboardInterrupt:
         console.print("\nSampai jumpa! 👋")
 
@@ -269,8 +301,9 @@ def cli(ctx: click.Context, force_remote: bool, force_local: bool, global_qualit
 @cli.command()
 @click.argument("query", required=False)
 @click.option("--quality", "cmd_quality", type=click.Choice(QUALITY_CHOICES), help="Filter kualitas")
+@click.option("--save-path", "cmd_save_path", default=None, help="Override direktori simpan di server remote")
 @click.pass_context
-def search(ctx: click.Context, query: str | None, cmd_quality: str | None) -> None:
+def search(ctx: click.Context, query: str | None, cmd_quality: str | None, cmd_save_path: str | None) -> None:
     try:
         query_value = query or Prompt.ask("Search").strip()
         if not query_value:
@@ -278,6 +311,7 @@ def search(ctx: click.Context, query: str | None, cmd_quality: str | None) -> No
             return
 
         quality = cmd_quality or ctx.obj.get("quality")
+        save_path = cmd_save_path or ctx.obj.get("save_path")
         movies = fetch_with_retry(
             lambda: search_movies(query=query_value, limit=5, quality=quality),
             "Mencari film...",
@@ -293,6 +327,7 @@ def search(ctx: click.Context, query: str | None, cmd_quality: str | None) -> No
             force_local=ctx.obj.get("force_local", False),
             force_remote=ctx.obj.get("force_remote", False),
             quality=quality,
+            save_path=save_path,
         )
     except KeyboardInterrupt:
         console.print("\nSampai jumpa! 👋")
@@ -302,10 +337,18 @@ def search(ctx: click.Context, query: str | None, cmd_quality: str | None) -> No
 @click.option("--genre", default=None, help="Filter genre")
 @click.option("--min-rating", default=0.0, type=float, help="Minimum rating")
 @click.option("--quality", "cmd_quality", type=click.Choice(QUALITY_CHOICES), help="Filter kualitas")
+@click.option("--save-path", "cmd_save_path", default=None, help="Override direktori simpan di server remote")
 @click.pass_context
-def top(ctx: click.Context, genre: str | None, min_rating: float, cmd_quality: str | None) -> None:
+def top(
+    ctx: click.Context,
+    genre: str | None,
+    min_rating: float,
+    cmd_quality: str | None,
+    cmd_save_path: str | None,
+) -> None:
     try:
         quality = cmd_quality or ctx.obj.get("quality")
+        save_path = cmd_save_path or ctx.obj.get("save_path")
         movies = fetch_with_retry(
             lambda: get_top_movies(limit=5, genre=genre, min_rating=min_rating, quality=quality),
             "Mengambil top movies...",
@@ -321,6 +364,7 @@ def top(ctx: click.Context, genre: str | None, min_rating: float, cmd_quality: s
             force_local=ctx.obj.get("force_local", False),
             force_remote=ctx.obj.get("force_remote", False),
             quality=quality,
+            save_path=save_path,
         )
     except KeyboardInterrupt:
         console.print("\nSampai jumpa! 👋")
@@ -328,10 +372,12 @@ def top(ctx: click.Context, genre: str | None, min_rating: float, cmd_quality: s
 
 @cli.command()
 @click.option("--quality", "cmd_quality", type=click.Choice(QUALITY_CHOICES), help="Filter kualitas")
+@click.option("--save-path", "cmd_save_path", default=None, help="Override direktori simpan di server remote")
 @click.pass_context
-def trending(ctx: click.Context, cmd_quality: str | None) -> None:
+def trending(ctx: click.Context, cmd_quality: str | None, cmd_save_path: str | None) -> None:
     try:
         quality = cmd_quality or ctx.obj.get("quality")
+        save_path = cmd_save_path or ctx.obj.get("save_path")
         movies = fetch_with_retry(
             lambda: get_trending(limit=5, quality=quality),
             "Mengambil trending movies...",
@@ -347,6 +393,7 @@ def trending(ctx: click.Context, cmd_quality: str | None) -> None:
             force_local=ctx.obj.get("force_local", False),
             force_remote=ctx.obj.get("force_remote", False),
             quality=quality,
+            save_path=save_path,
         )
     except KeyboardInterrupt:
         console.print("\nSampai jumpa! 👋")
